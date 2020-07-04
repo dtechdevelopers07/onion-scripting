@@ -16,7 +16,24 @@ else
 	echo "Only POST Request is supported";
 	exit 0;
 fi
-carrier=$POST_DATA; # data of request
+# a function to parse post data
+function urldecode {
+        local url_encoded="${1//+/ }"
+        printf '%b' "${url_encoded//%/\\x}"
+}
+
+[ -z "$POST_STRING" -a "$REQUEST_METHOD" = "POST" -a ! -z "$CONTENT_LENGTH" ] && read -n $CONTENT_LENGTH POST_STRING
+
+OIFS=$IFS
+IFS='=&'
+parm_post=($POST_STRING)
+IFS=$OIFS
+
+declare -A post
+for ((i=0; i<${#parm_post[@]}; i+=2)); do
+        post[${parm_post[i]}]=$(urldecode ${parm_post[i+1]})
+done
+carrier=${post['carrier']}; # data of request
 ip_array=( $(who |grep -v root| cut -d"(" -f2 |cut -d")" -f1)) # get data from "who" and some manipulation to get ip 
 carrier_array=(); # ip to store carrier from api
 for i in ${ip_array[@]} # loop start
@@ -26,7 +43,7 @@ do
 done
 #getting unique entries in carrier array
 unique=($(echo "${carrier_array[@]}" | tr ' ' '\n' | sort -u | tr '\n' ' '))
-# echo ${unique[@]};
+#echo ${unique[@]};
 # check if carrier in post data is found in carrier array
 if [[ " ${unique[@]} " =~ " ${carrier} " ]]; then
     echo 0; # found carrier
